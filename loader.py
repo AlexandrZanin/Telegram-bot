@@ -9,6 +9,7 @@ from main import bot
 from telebot import types
 import apidler
 import re
+from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 
 user_dict={}
 comands_list=['/lowprice - топ самых дешёвых отелей',
@@ -195,7 +196,8 @@ def callback_worker(query):
         user.sity_id=query.data
         bot.send_message(query.message.chat.id, 'Введите дату заезда в формате ГГГГ-ДД-ММ',
                          reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(query.message, get_date_in)
+        calendar_func(query.message.chat.id)
+        # bot.register_next_step_handler(query.message, get_date_in)
     elif re.search(r'[id]\d+', query.data):
         query.data=int(query.data[2:])
         for hotel in orm.Hotels_find.select().where(orm.Hotels_find.owner_id==query.data):
@@ -249,7 +251,11 @@ def get_hotels(message):
                 size=apidler.get_foto(hotel["id"])[i]["sizes"][0]["suffix"]
                 link_new=re.sub(r'{size}', size, link)
                 bot.send_photo(message.chat.id, link_new)
-
+def calendar_func():
+    calendar, step=DetailedTelegramCalendar().build()
+    bot.send_message(m.chat.id,
+                     f"Select {LSTEP[step]}",
+                     reply_markup=calendar)
 
 
 if __name__ == '__main__':
