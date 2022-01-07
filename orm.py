@@ -18,7 +18,7 @@ class Guest(BaseModel):
     count_hotels=IntegerField()#(default=1)
     foto=BooleanField()#(default=True)
     foto_count=IntegerField()#(default=0)
-    time_now=DateTimeField(formats=['%Y-%m-%d'])
+    time_now=DateTimeField(formats=['%Y-%m-%d %H:%M:%S'])
 class Hotels_find(BaseModel):
     owner=ForeignKeyField(Guest, related_name='hotels')
     name=CharField()

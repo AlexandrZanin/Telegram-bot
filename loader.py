@@ -10,6 +10,7 @@ from telebot import types
 import apidler
 import re
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
+from datetime import date, datetime
 
 user_dict={}
 comands_list=['/lowprice - топ самых дешёвых отелей',
@@ -41,7 +42,7 @@ class User:
 def registration(message):
     user=User(message.text, message.from_user.id)
     user_dict[message.from_user.id]=user
-
+'''
 @bot.message_handler(commands=['start'])
 def start_message(message):
     bot.send_message(message.chat.id, "Привет ✌️ Жми /help")
@@ -90,6 +91,7 @@ def history_message(message):
 @bot.message_handler(content_types='text')
 def some_text(message):
     bot.send_message(message.chat.id, 'Не понятно, нажми /help')
+
 def get_sity(message):
     bot.send_message(message.chat.id, 'Выберите город для поиска отелей',
                      reply_markup=types.ReplyKeyboardRemove())
@@ -98,6 +100,7 @@ def get_sity(message):
     # bot.send_message(message.chat.id, 'Введите дату заезда в формате ГГГГ-ДД-ММ',
     #                  reply_markup=types.ReplyKeyboardRemove())
     # bot.register_next_step_handler(message, get_date_in)
+    '''
 def check_sity(message):
     user=user_dict[message.chat.id]
     user.sity=message.text
@@ -137,7 +140,7 @@ def callback_sity(call):
         bot.send_message(call.message.chat.id, 'Введите дату заезда в формате ГГГГ-ДД-ММ',
                               reply_markup=types.ReplyKeyboardRemove())
         bot.register_next_step_handler(call.message, get_date_in)
-'''
+
 def get_date_in(message):
     user=user_dict[message.chat.id]
     user.date_in=message.text
@@ -158,26 +161,46 @@ def get_date_out(message):
                          reply_markup=types.ReplyKeyboardRemove())
         bot.register_next_step_handler(message, get_hotels_count)
 
-
+'''
 def get_price_range(message):
     user=user_dict[message.chat.id]
     user.low_price=re.findall(r'\d+', message.text)[0]
     user.top_price=re.findall(r'\d+', message.text)[1]
-    bot.send_message(message.chat.id, 'Сколько отелей выводить?',
+    bot.send_message(message.chat.id, 'Сколько отелей выводить? (Не больше 10)',
                      reply_markup=types.ReplyKeyboardRemove())
     bot.register_next_step_handler(message, get_hotels_count)
 
 
 def get_hotels_count(message):
     user=user_dict[message.chat.id]
-    user.count_hotels=message.text
-    keyboard=types.InlineKeyboardMarkup()  # наша клавиатура
-    key_yes=types.InlineKeyboardButton(text='Да', callback_data='yes')  # кнопка «Да»
-    keyboard.add(key_yes)  # добавляем кнопку в клавиатуру
-    key_no=types.InlineKeyboardButton(text='Нет', callback_data='no')
-    keyboard.add(key_no)
-    question='Вывести фото?'
-    bot.send_message(message.chat.id, text=question, reply_markup=keyboard)# отсюда улетает опять на дату
+
+    if int(message.text)>10 or int(message.text)<1:
+        bot.send_message(message.chat.id, text='Введите количество отелей (от 1 до 10). Попробуйте ввести еще раз', reply_markup=types.ReplyKeyboardRemove())
+        bot.register_next_step_handler(message, get_hotels_count)
+        # raise ValueError('Больше 10 или меньше 1')
+
+
+    elif not message.text.isdigit():
+        bot.send_message(message.chat.id, text='Введите число от 1 до 10')
+        bot.register_next_step_handler(message, get_hotels_count)
+        # raise ValueError('Не число')
+
+    else:
+        user.count_hotels=message.text
+        keyboard=types.InlineKeyboardMarkup()  # наша клавиатура
+        key_yes=types.InlineKeyboardButton(text='Да', callback_data='yes')  # кнопка «Да»
+        keyboard.add(key_yes)  # добавляем кнопку в клавиатуру
+        key_no=types.InlineKeyboardButton(text='Нет', callback_data='no')
+        keyboard.add(key_no)
+        question='Вывести фото?'
+        bot.send_message(message.chat.id, text=question, reply_markup=keyboard)# отсюда улетает опять на дату
+    # except ValueError:
+    #     print('error')
+        # bot.register_next_step_handler(message, get_hotels_count)
+        # logger.error('Api coonection error {}'.format(e))
+
+
+'''    
 @bot.callback_query_handler(func=lambda call: True)
 def callback_worker(query):
     if query.data == "yes":  # call.data это callback_data, которую мы указали при объявлении кнопки
@@ -207,7 +230,7 @@ def callback_worker(query):
                                    stars=hotel.stars,site=hotel.site)
             bot.send_message(query.message.chat.id, text,
                              reply_markup=types.ReplyKeyboardRemove())
-
+'''
 def get_hotels(message):
     user=user_dict[message.chat.id]
     user.foto_count=message.text
@@ -218,7 +241,8 @@ def get_hotels(message):
                           low_price=user.low_price, top_price=user.top_price,
                           count_hotels=user.count_hotels, foto=user.foto,
                           foto_count=user.foto_count, user_id = user.id,
-                          time_now=datetime.datetime.now())
+                          time_now=datetime.now())
+    # .strftime("%m/%d/%Y, %H:%M:%S"
 
     if user.cmd=='/lowprice':
         list_hotels=apidler.lowprice_func(user.sity_id, user.count_hotels, user.date_in, user.date_out, user.locale)
@@ -251,12 +275,25 @@ def get_hotels(message):
                 size=apidler.get_foto(hotel["id"])[i]["sizes"][0]["suffix"]
                 link_new=re.sub(r'{size}', size, link)
                 bot.send_photo(message.chat.id, link_new)
-def calendar_func():
-    calendar, step=DetailedTelegramCalendar().build()
-    bot.send_message(m.chat.id,
+
+def calendar_func_in(id):
+    bot.send_message(id, 'Введите дату заезда',
+                     reply_markup=types.ReplyKeyboardRemove())
+    calendar, step=DetailedTelegramCalendar(min_date=date.today(), max_date=date(2023, 12, 31), locale='ru').build()
+    bot.send_message(id,
                      f"Select {LSTEP[step]}",
                      reply_markup=calendar)
 
-
-if __name__ == '__main__':
-    bot.infinity_polling()
+def calendar_func_out(id):
+    bot.send_message(id, 'Введите дату выезда',
+                     reply_markup=types.ReplyKeyboardRemove())
+    user = user_dict[id]
+    calendar, step=DetailedTelegramCalendar(min_date=user.date_in, max_date=date(2023, 12, 31), locale='ru').build()
+    bot.send_message(id,
+                     f"Select {LSTEP[step]}",
+                     reply_markup=calendar)
+def get_keyboard(data, text, message):
+    # Генерация клавиатуры.
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton(text='Смотреть найденное', callback_data=data))
+    bot.send_message(message.chat.id, text=text, reply_markup=keyboard)

@@ -105,5 +105,7 @@ def check_locale(city:str):
         return 'en_US'
     elif all([True if sym in 'абвгдеёжзиклмнопрстуфхцчшщьыъэюя' else False for sym in city]):
         return 'ru_RU'
+    else:
+        return 'en_US'
 
 
