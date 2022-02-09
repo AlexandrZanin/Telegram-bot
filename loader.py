@@ -139,11 +139,9 @@ def get_hotels(message: types.Message):
         else:  # user.cmd == '/bestdeal':
             list_hotels=apidler.bestdeal_func(user.sity_id, user.count_hotels, user.date_in, user.date_out,
                                               user.low_price, user.top_price, user.locale, message.from_user.id)
-            # лист хотел может быть None
             try:
                 list_hotels=[hotel for hotel in list_hotels if check_dist(hotel["landmarks"][0]["distance"],
                                                                           user.max_dist, user.locale)]
-                print(list_hotels)
                 # list_hotels=sorted(list_hotels, key=apidler.sort_key)
             except:
                 logger.info('Какая-то фигня')
