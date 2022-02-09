@@ -1,16 +1,17 @@
-'''основной модуль loader.py который погружает все нужное, создает экземпляры если нужны.
+"""
+основной модуль loader.py который погружает все нужное, создает экземпляры если нужны.
 В нем должны подгружаться все нужные константы(токены бота, API) инициализироваться класс с ботом TeleBot
-'''
-import json
-
-import orm
-from orm import *
-from main import bot
-from telebot import types
-import apidler
+"""
 import re
-from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 from datetime import date, datetime
+
+from loguru import logger
+from telebot import types
+from telegram_bot_calendar import LSTEP
+from calendar_my import MyStyleCalendar
+import apidler
+import orm
+from main import bot
 
 user_dict={}
 comands_list=['/lowprice - топ самых дешёвых отелей',
@@ -20,7 +21,27 @@ comands_list=['/lowprice - топ самых дешёвых отелей',
 
 
 class User:
+    """ This is User Class
+    """
+
     def __init__(self, cmd, id):
+        """
+        :param cmd: command
+        :param id: user id
+        :param sity: city name
+        :param sity_id: city id
+        :param date_in: check-in date to the hotel
+        :param date_out: check-out date to the hotel
+        :param low_price: lower price limits
+        :param top_price: upper price limits
+        :param count_hotel: how many hotels to show
+        :param foto: show photo or not
+        :param foto_count: how many foto to show
+        :param locale: en_US or ru_RU
+        :param max_dist: maximum distance to the city center
+        :param city_name_id: temporary storage. dictionary: key=city id, value=city name
+        :return: User object.
+        """
         self.cmd=cmd
         self.id=id
         self.sity=None
@@ -33,267 +54,213 @@ class User:
         self.foto=False
         self.foto_count=0
         self.locale='en_US'
+        self.max_dist=0
+        self.city_name_id={}
 
-# def registration(message):
-#   user.get_user_params(message.from_user.id)['sort_order']=
-#   user.get_user_params(message.from_user.id)['command']=
-#   user.get_user_params(message.from_user.id)['datatime']= datatime.datatime.now()
-#   logger.info('Recieved lowprice command from user {}'.formar(message.from_user.id)
-def registration(message):
+
+def registration(message: types.Message):
+    """
+    User initialization, adding to the dictionary user_dict new user
+    :param message:
+    :return:
+    """
     user=User(message.text, message.from_user.id)
     user_dict[message.from_user.id]=user
-'''
-@bot.message_handler(commands=['start'])
-def start_message(message):
-    bot.send_message(message.chat.id, "Привет ✌️ Жми /help")
+    logger.info('The user {} entered the command {}'.format(message.from_user.id, message.text))
 
 
-@bot.message_handler(commands=['help'])
-def help_message(message):
-    bot.send_message(message.chat.id, 'Это бот для поиска отелей.')
-    bot.send_message(message.chat.id, '\n'.join(comands_list))
-
-@bot.message_handler(commands=['lowprice'])
-def lowprice_message(message):
-    registration(message)
-    # user=User(message.text)
-    # user_dict[message.from_user.id]=user
-    get_sity(message)
-@bot.message_handler(commands=['highprice'])
-def highprice_message(message):
-    registration(message)
-    # user=User(message.text, message.from_user.id)
-    # user_dict[message.from_user.id]=user
-    get_sity(message)
-@bot.message_handler(commands=['bestdeal'])
-def bestdeal_message(message):
-    registration(message)
-    # user=User(message.text)
-    # user_dict[message.from_user.id]=user
-    get_sity(message)
-@bot.message_handler(commands=['history'])# история запросов
-def history_message(message):
-    if orm.Guest.select():
-        markup=types.InlineKeyboardMarkup()
-        counter=0
-        for id_request in orm.Guest.select().order_by(orm.Guest.time_now.desc()):
-            text_button="️{sity}✌️{in_date}:{out_date}✌️{low}-{top}". \
-                format(cmd=id_request.cmd, sity=id_request.sity, in_date=id_request.date_in, out_date=id_request.date_out,
-                       low=id_request.low_price, top=id_request.top_price)
-            markup.add(types.InlineKeyboardButton(text=text_button, callback_data='id'+str(id_request.id)))
-            counter+=1
-            if counter==5:
-                break
-        bot.send_message(message.chat.id, text="Последние {} запросов".format(counter), reply_markup=markup)
-    else:
-        bot.send_message(message.chat.id, text="Не выполнено ни одного запроса")
-
-@bot.message_handler(content_types='text')
-def some_text(message):
-    bot.send_message(message.chat.id, 'Не понятно, нажми /help')
-
-def get_sity(message):
-    bot.send_message(message.chat.id, 'Выберите город для поиска отелей',
-                     reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(message, check_sity)
-
-    # bot.send_message(message.chat.id, 'Введите дату заезда в формате ГГГГ-ДД-ММ',
-    #                  reply_markup=types.ReplyKeyboardRemove())
-    # bot.register_next_step_handler(message, get_date_in)
-    '''
-def check_sity(message):
+def check_city(message: types.Message):
+    """
+    This function creates a InlineKeyboard with the name of cities.
+    :param message:
+    :return:
+    """
     user=user_dict[message.chat.id]
-    user.sity=message.text
-    user.locale=apidler.check_locale(user.sity)
+    user.locale=apidler.check_locale(message.text)
     keyboard=types.InlineKeyboardMarkup()  # наша клавиатура
     try:
-        list_sity = apidler.get_sity_destinationID(user.sity, user.locale)
+        list_sity=apidler.get_sity_destinationID(user.locale, message)
+        logger.info('geting list city')
+        user.city_name_id.clear()
         question='Ничего не найдено'
         for elem in list_sity:
-            if elem["type"] == "CITY" and elem['name'].lower() == message.text.lower():
+            if elem["type"] == "CITY":
                 question='Уточните'
-                if re.findall(r'>.*<', elem["caption"]):
-                    text_button=re.sub(r'<.*>.*</.*>', elem['name'], elem["caption"])
+                # if re.findall(r'>.*<', elem["caption"]):
+                #      text_button=re.sub(r'<.*>.*</.*>', elem['name'], elem["caption"])
+                # else:
+                # text_button=re.sub(r'.*</.*>,', elem['name'], elem["caption"])
+                # text_button=elem["caption"]
+                temp=elem["caption"].split(',')
+                for i in range(len(temp)):
+                    if re.search(r'<.*>.*<.*>', temp[i]):
+                        del temp[i]
+                        break
+                if temp[0] == elem['name']:
+                    text_button=','.join(temp)
                 else:
-                    text_button=elem["caption"]
-                key=types.InlineKeyboardButton(text=text_button, callback_data=elem["destinationId"])  # кнопка с инфо об отеле
-                keyboard.add(key)  # добавляем кнопку в клавиатуру
-        key1=types.InlineKeyboardButton(text='Ввести другой город', callback_data='again')  # кнопка с инфо об отеле
-        keyboard.add(key1)  # добавляем кнопку в клавиатуру
+                    text_button=elem['name'] + ', ' + ','.join(temp)
+                user.city_name_id[elem["destinationId"]]=elem['name']
+                key=types.InlineKeyboardButton(text=text_button, callback_data=elem["destinationId"])
+                keyboard.add(key)
+        key1=types.InlineKeyboardButton(text='Ввести другой город', callback_data='again')
+        keyboard.add(key1)
         bot.send_message(message.from_user.id, text=question, reply_markup=keyboard)
-    except ConnectionError as e:
-#       logger.error('Api coonection error {}'.format(e))
-        bot.send_message(message.from_user.id, 'Ошибка в соединение')
-    except TimeoutError as e:
-        # logger.error('Api coonection error {}'.format(e))
-        bot.send_message(message.from_user.id, 'время истекло')
-    except json.decoder.JSONDecodeError as e:
-        # logger.error('Api coonection error {}'.format(e))
-        bot.send_message(message.from_user.id, 'Некорректный ответ')
-'''
-@bot.callback_query_handler(func=lambda call: True)
-def callback_sity(call):
-        # call.data это callback_data, которую мы указали при объявлении кнопки
-        # if call.data:
-        user=user_dict[call.message.chat.id]
-        user.sity_id=call.data
-        bot.send_message(call.message.chat.id, 'Введите дату заезда в формате ГГГГ-ДД-ММ',
-                              reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(call.message, get_date_in)
+    except (TypeError, KeyError) as e:
+        logger.error('{}_check_city'.format(e))
 
-def get_date_in(message):
+
+def get_hotels(message: types.Message):
+    """
+    This function writes user class parameters to the database.
+    Receives data from the api.
+    Sends search results
+    Writes the found hotels to the database
+    :param message:
+    :return:
+    """
     user=user_dict[message.chat.id]
-    user.date_in=message.text
-    bot.send_message(message.chat.id, 'Введите дату выезда в формате ГГГГ-ДД-ММ',
-                     reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(message, get_date_out)
-
-
-def get_date_out(message):
-    user=user_dict[message.chat.id]
-    user.date_out=message.text
-    if user.cmd=='/bestdeal':
-        bot.send_message(message.chat.id, 'Укажите диапазон цен',
-                         reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(message, get_price_range)
-    else:
-        bot.send_message(message.chat.id, 'Сколько отелей выводить?',
-                         reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(message, get_hotels_count)
-
-'''
-def get_price_range(message):
-    user=user_dict[message.chat.id]
-    user.low_price=re.findall(r'\d+', message.text)[0]
-    user.top_price=re.findall(r'\d+', message.text)[1]
-    bot.send_message(message.chat.id, 'Сколько отелей выводить? (Не больше 10)',
-                     reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(message, get_hotels_count)
-
-
-def get_hotels_count(message):
-    user=user_dict[message.chat.id]
-
-    if int(message.text)>10 or int(message.text)<1:
-        bot.send_message(message.chat.id, text='Введите количество отелей (от 1 до 10). Попробуйте ввести еще раз', reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(message, get_hotels_count)
-        # raise ValueError('Больше 10 или меньше 1')
-
-
-    elif not message.text.isdigit():
-        bot.send_message(message.chat.id, text='Введите число от 1 до 10')
-        bot.register_next_step_handler(message, get_hotels_count)
-        # raise ValueError('Не число')
-
-    else:
-        user.count_hotels=message.text
-        keyboard=types.InlineKeyboardMarkup()  # наша клавиатура
-        key_yes=types.InlineKeyboardButton(text='Да', callback_data='yes')  # кнопка «Да»
-        keyboard.add(key_yes)  # добавляем кнопку в клавиатуру
-        key_no=types.InlineKeyboardButton(text='Нет', callback_data='no')
-        keyboard.add(key_no)
-        question='Вывести фото?'
-        bot.send_message(message.chat.id, text=question, reply_markup=keyboard)# отсюда улетает опять на дату
-    # except ValueError:
-    #     print('error')
-        # bot.register_next_step_handler(message, get_hotels_count)
-        # logger.error('Api coonection error {}'.format(e))
-
-
-'''    
-@bot.callback_query_handler(func=lambda call: True)
-def callback_worker(query):
-    if query.data == "yes":  # call.data это callback_data, которую мы указали при объявлении кнопки
-        user=user_dict[query.message.chat.id]
-        user.foto=True
-        bot.send_message(query.message.chat.id, 'Сколько фото выводить?',
-                         reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(query.message, get_hotels)
-    elif query.data=="no":
-        get_hotels(query.message)
-    elif query.data=='again':
-        bot.send_message(query.message.chat.id, text='Выберите город для поиска отелей', reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(query.message, check_sity)
-    elif re.search(r'^\d+', query.data):
-        user=user_dict[query.message.chat.id]
-        user.sity_id=query.data
-        bot.send_message(query.message.chat.id, 'Введите дату заезда в формате ГГГГ-ДД-ММ',
-                         reply_markup=types.ReplyKeyboardRemove())
-        calendar_func(query.message.chat.id)
-        # bot.register_next_step_handler(query.message, get_date_in)
-    elif re.search(r'[id]\d+', query.data):
-        query.data=int(query.data[2:])
-        for hotel in orm.Hotels_find.select().where(orm.Hotels_find.owner_id==query.data):
-            text="{name}\n{dist}\n{addres}\n{price}\n{stars}\n{site}".\
-                format(name=hotel.name, dist=hotel.dist,
-                                   addres=hotel.addres, price=hotel.price,
-                                   stars=hotel.stars,site=hotel.site)
-            bot.send_message(query.message.chat.id, text,
-                             reply_markup=types.ReplyKeyboardRemove())
-'''
-def get_hotels(message):
-    user=user_dict[message.chat.id]
-    user.foto_count=message.text
-    bot.send_message(message.chat.id, 'Придется немного подождать')
+    bot.send_message(message.chat.id, 'Придется немного подождать ⏳')
     orm.create_table_guest()
     new_find=orm.Guest.create(cmd=user.cmd, sity=user.sity, sity_id=user.sity_id,
-                          date_in=user.date_in, date_out=user.date_out,
-                          low_price=user.low_price, top_price=user.top_price,
-                          count_hotels=user.count_hotels, foto=user.foto,
-                          foto_count=user.foto_count, user_id = user.id,
-                          time_now=datetime.now())
+                              date_in=user.date_in, date_out=user.date_out,
+                              low_price=user.low_price, top_price=user.top_price, max_dist=user.max_dist,
+                              count_hotels=user.count_hotels, foto=user.foto,
+                              foto_count=user.foto_count, user_id=user.id,
+                              time_now=datetime.now())
     # .strftime("%m/%d/%Y, %H:%M:%S"
+    try:
+        if user.cmd == '/lowprice':
+            list_hotels=apidler.lowprice_func(user.sity_id, user.count_hotels, user.date_in,
+                                              user.date_out, user.locale, message.from_user.id)
+        elif user.cmd == '/highprice':
+            list_hotels=apidler.highprice_func(user.sity_id, user.count_hotels, user.date_in,
+                                               user.date_out, user.locale, message.from_user.id)
+        else:  # user.cmd == '/bestdeal':
+            list_hotels=apidler.bestdeal_func(user.sity_id, user.count_hotels, user.date_in, user.date_out,
+                                              user.low_price, user.top_price, user.locale, message.from_user.id)
+            # лист хотел может быть None
+            try:
+                list_hotels=[hotel for hotel in list_hotels if check_dist(hotel["landmarks"][0]["distance"],
+                                                                          user.max_dist, user.locale)]
+                print(list_hotels)
+                # list_hotels=sorted(list_hotels, key=apidler.sort_key)
+            except:
+                logger.info('Какая-то фигня')
+        if len(list_hotels) < int(user.count_hotels) and len(list_hotels) > 0:
+            bot.send_message(message.chat.id, 'Найдено {} отелей'.format(len(list_hotels)))
+        elif len(list_hotels) == 0:
+            bot.send_message(message.chat.id, 'По вашему запросу не найден ни один отель.'
+                                              ' Повторите поиск с другими параметрами')
+        for hotel in list_hotels:
+            hotel_info={}
+            try:
+                hotel_info['name']=hotel["name"]
+            except:
+                logger.error('name not found')
+            try:
+                hotel_info['dist']=hotel["landmarks"][0]["distance"]
+            except:
+                logger.error('distance not found')
+            details_info=apidler.get_details(hotel['id'], user.date_in, user.date_out, user.locale)
+            try:
+                hotel_info['addres']=details_info["propertyDescription"]["address"][
+                    "fullAddress"]  # может отсутствовать информация
+            except KeyError:
+                logger.error('addres not found')
+                hotel_info['addres']='Адрес отсутствует'
+            try:
+                hotel_info['price']=hotel["ratePlan"]["price"]["current"] + ' ' + hotel["ratePlan"]["price"]["info"]
+            except KeyError:
+                hotel_info['price']=str(
+                    int(hotel["ratePlan"]["price"]["exactCurrent"] * (user.date_out - user.date_in).days)) + \
+                                    " " + "рублей за 1 номер на {} суток".format((user.date_out - user.date_in).days)
+            hotel_info['stars']=str(details_info["propertyDescription"]["starRating"])
+            hotel_info['site']='https://ru.hotels.com/ho' + str(hotel['id'])
+            send_info='🔥 {name}\n🌍 Адрес: {addres}\n🚕 Расстояние до центра:' \
+                      ' {dist}\n💵 Цена: {price}\n⭐ Количество звёзд: {stars}\n' \
+                      '{site}'.format(name=hotel_info['name'], dist=hotel_info['dist'],
+                                      addres=hotel_info['addres'], price=hotel_info['price'],
+                                      stars=hotel_info['stars'], site=hotel_info['site'])
+            bot.send_message(message.chat.id, send_info)
+            orm.create_table_hotels()
+            orm.Hotels_find.create(owner=new_find, name=hotel_info['name'], dist=hotel_info['dist'],
+                                   addres=hotel_info['addres'], price=hotel_info['price'],
+                                   stars=hotel_info['stars'], site=hotel_info['site'])
+            if user.foto:
+                foto=apidler.get_foto(hotel["id"])
+                for i in range(int(user.foto_count)):
+                    try:
+                        link=foto[i]["baseUrl"]
+                        size=foto[i]["sizes"][1]["suffix"]
+                        link_new=re.sub(r'{size}', size, link)
+                        bot.send_photo(message.chat.id, link_new)
+                    except IndexError as e:
+                        logger.error('get_fotos - {}'.format(e))
+    # except TypeError:
+    #     logger.error('Error recieved api data')
+    except Exception:
+        logger.error('Some data is not received')
+        bot.send_message(message.chat.id, "Не удалось найти данные, нажмите /help")
 
-    if user.cmd=='/lowprice':
-        list_hotels=apidler.lowprice_func(user.sity_id, user.count_hotels, user.date_in, user.date_out, user.locale)
-    elif user.cmd=='/highprice':
-        list_hotels=apidler.highprice_func(user.sity_id, user.count_hotels, user.date_in, user.date_out, user.locale)
-    elif user.cmd=='/bestdeal':
-        list_hotels=apidler.bestdeal_func(user.sity_id, user.count_hotels, user.date_in, user.date_out,
-                                          user.low_price, user.top_price, user.locale)
-
-    for hotel in list_hotels:
-        hotel_info={}
-        hotel_info['name']=hotel["name"]
-        hotel_info['dist']=hotel["landmarks"][0]["distance"]
-        details_info = apidler.get_details(hotel['id'], user.date_in, user.date_out, user.locale)
-        try:
-            hotel_info['addres']=details_info["propertyDescription"]["localisedAddress"]["fullAddress"] # может отсутствовать информация
-        except KeyError:
-            hotel_info.append('Адрес отсутствует')
-        hotel_info['price']=hotel["ratePlan"]["price"]["current"]
-        hotel_info['stars']=str(details_info["propertyDescription"]["starRating"])
-        hotel_info['site']='https://ru.hotels.com/ho'+str(hotel['id'])
-        bot.send_message(message.chat.id, '\n'.join(hotel_info.values()))
-        orm.create_table_hotels()
-        orm.Hotels_find.create(owner=new_find, name=hotel_info['name'], dist=hotel_info['dist'],
-                               addres=hotel_info['addres'], price=hotel_info['price'],
-                               stars=hotel_info['stars'],site=hotel_info['site'])
-        if user.foto:
-            for i in range(int(user.foto_count)):
-                link=apidler.get_foto(hotel["id"])[i]["baseUrl"]
-                size=apidler.get_foto(hotel["id"])[i]["sizes"][0]["suffix"]
-                link_new=re.sub(r'{size}', size, link)
-                bot.send_photo(message.chat.id, link_new)
 
 def calendar_func_in(id):
+    """
+    Calendar for check-in date: minimum date today, maximum date 31.12.2023
+    :param id:
+    :return:
+    """
     bot.send_message(id, 'Введите дату заезда',
                      reply_markup=types.ReplyKeyboardRemove())
-    calendar, step=DetailedTelegramCalendar(min_date=date.today(), max_date=date(2023, 12, 31), locale='ru').build()
+    calendar, step=MyStyleCalendar(min_date=date.today(), max_date=date(2023, 12, 31), locale='ru').build()
     bot.send_message(id,
                      f"Select {LSTEP[step]}",
                      reply_markup=calendar)
 
+
 def calendar_func_out(id):
+    """
+    Calendar for check-out date: minimum date - check-in date, maximum date 31.12.2023
+    :param id:
+    :return:
+    """
     bot.send_message(id, 'Введите дату выезда',
                      reply_markup=types.ReplyKeyboardRemove())
-    user = user_dict[id]
-    calendar, step=DetailedTelegramCalendar(min_date=user.date_in, max_date=date(2023, 12, 31), locale='ru').build()
+    user=user_dict[id]
+    calendar, step=MyStyleCalendar(min_date=user.date_in, max_date=date(2023, 12, 31), locale='ru').build()
     bot.send_message(id,
                      f"Select {LSTEP[step]}",
                      reply_markup=calendar)
-def get_keyboard(data, text, message):
+
+
+def get_keyboard(data: str, text: str, message: types.Message):
+    """
+    This function sends data at the user's request
+    Creates InlineKeyboardButton 'Смотреть найденное'.
+    Send the search results for this search.
+    :param data: 'id' + 'database search id'
+    :param text: "{time_now}\n Команда {cmd}\n Город: {city}\n {check-in date}\n {check-out date}"
+    :param message: message
+    :return:
+    """
     # Генерация клавиатуры.
-    keyboard = types.InlineKeyboardMarkup()
+    keyboard=types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text='Смотреть найденное', callback_data=data))
     bot.send_message(message.chat.id, text=text, reply_markup=keyboard)
+
+
+def check_dist(dist_to_centr: str, max_dist: str, locale: str):
+    """
+    This function checks whether the distance from the hotel to the city center
+    does not exceed the maximum distance that the user entered
+    :param dist_to_centr: distance from the hotel to the city center from api
+    :param max_dist: the maximum distance that the user entered
+    :param locale: if en_US: then the distance in miles   elif ru_RU: then the distance in kilometers.
+    :return: True or False
+    """
+    if locale == 'en_US':
+        dist_to_centr=round(float(re.findall('\d+[.,]*\d*', dist_to_centr)[0]) * 1.6, 2)
+    elif locale == 'ru_RU':
+        dist_to_centr=round(float(re.findall('\d+[.,]*\d*', dist_to_centr)[0]), 2)
+    max_dist=round(float(re.findall('\d+[.,]*\d*', max_dist)[0]), 2)
+    return dist_to_centr < max_dist
