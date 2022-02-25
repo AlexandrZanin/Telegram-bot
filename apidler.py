@@ -7,18 +7,27 @@ import json
 from main import bot
 from telebot import types
 from loguru import logger
-import os
-from dotenv import load_dotenv
+from loader import env_token
+import re
 
-def headers_api():
-    dotenv_path=os.path.join(os.path.dirname(__file__), '.env')
-    if os.path.exists(dotenv_path):
-        load_dotenv(dotenv_path)
-    x_rapidapi_key=os.getenv('x-rapidapi-key')
-    return x_rapidapi_key
 headers={
         'x-rapidapi-host': "hotels4.p.rapidapi.com",
-        'x-rapidapi-key':headers_api()}
+        'x-rapidapi-key':env_token('x-rapidapi-key')}
+def request_to_api(url, headers, querystring, message:types.Message):
+    try:
+        response = requests.request("GET",url, headers=headers, params=querystring, timeout=10)
+        if response.status_code == 200:
+            # result=json.loads(response.text)
+            return response
+        else:
+            bot.send_message(message.from_user.id, 'Ошибка в соединение с сервером')
+            logger.info('status code - {}'.format(response.status_code ))
+    except ConnectionError as e:
+        logger.error('Api connection error {}'.format(e))
+        bot.send_message(message.from_user.id, 'Ошибка в соединение')
+    except TimeoutError as e:
+        logger.error('Api connection error {}'.format(e))
+        bot.send_message(message.from_user.id, 'время истекло')
 
 def get_sity_destinationID(locale:str, message:types.Message):
     """
@@ -28,17 +37,19 @@ def get_sity_destinationID(locale:str, message:types.Message):
     :return: list of cities found
     """
     sity=message.text
+    url="https://hotels4.p.rapidapi.com/locations/v2/search"
+    querystring={"query": sity, "locale": locale, "currency": "RUB"}
     try:
-        url="https://hotels4.p.rapidapi.com/locations/v2/search"
-        querystring={"query": sity, "locale": locale, "currency": "RUB"}
-        response=requests.request("GET", url, headers=headers, params=querystring, timeout=20)
-        if response.status_code!=200:
-            logger.error('server error status!=200')
-            bot.send_message(message.from_user.id, 'Ошибка в соединение с сервером')
-        else:
-            logger.info('get_sity_id {} - successful'.format(sity))
-            result=json.loads(response.text)
-            return result['suggestions'][0]['entities']#передаю список из вариантов
+        response=request_to_api(url, headers, querystring, message)
+        pattern=r'(?<="CITY_GROUP",).+?[\]]'
+        find=re.search(pattern, response.text)
+        if find:
+            result=json.loads(f"{{{find[0]}}}")
+            print(result)
+            # result=json.loads(response.text)
+            logger.info('lowprice - successful')
+            return result['entities']
+                # result['suggestions'][0]['entities']#передаю список из вариантов
     except ConnectionError as e:
         logger.error('Api connection error {}'.format(e))
         bot.send_message(message.from_user.id, 'Ошибка в соединение')
