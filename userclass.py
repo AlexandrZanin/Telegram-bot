@@ -1,8 +1,8 @@
 class User:
     """ This is User Class
     """
-
-    def __init__(self, cmd, id):
+    user_dict={}
+    def __init__(self, id):
         """
         :param cmd: command
         :param id: user id
@@ -20,7 +20,7 @@ class User:
         :param city_name_id: temporary storage. dictionary: key=city id, value=city name
         :return: User object.
         """
-        self.cmd=cmd
+        self.cmd=None
         self.id=id
         self.sity=None
         self.sity_id=None
@@ -34,3 +34,16 @@ class User:
         self.locale='en_US'
         self.max_dist=0
         self.city_name_id={}
+        self.currency='RUB'
+        User.add_user(id, self)
+
+    @staticmethod
+    def get_user(user_id):
+        if User.user_dict.get(user_id) is None:
+            new_user=User(user_id)
+            return new_user
+        return User.user_dict.get(user_id)
+
+    @classmethod
+    def add_user(cls, user_id, user):
+        cls.user_dict[user_id]=user

@@ -8,9 +8,10 @@ from telebot import types
 import os
 from dotenv import load_dotenv
 from userclass import User
+import orm
 
 
-user_dict={}
+
 
 
 def env_token(key):
@@ -29,9 +30,11 @@ def registration(message: types.Message):
     :param message:
     :return:
     """
-    user=User(message.text, message.from_user.id)
-    user_dict[message.from_user.id]=user
+    user=User.get_user(message.from_user.id)
+    user.cmd=message.text
     logger.info('The user {} entered the command {}'.format(message.from_user.id, message.text))
+    orm.create_table_guest()
+    orm.create_table_hotels()
 
 
 

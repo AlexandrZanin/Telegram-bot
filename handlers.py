@@ -2,17 +2,17 @@
 дочерний handlers.py в нем объявляются все кастомные хендлеры -
 получение города, количества отелей и прочее
 '''
-from loader import bot, user_dict
-import apidler
+from loader import bot
+from userclass import User
+from rapidapi import apidler, bestdeal, lowprice, highprice, get_photo
 from loguru import logger
-import re
 from telebot import types
 from telegram_bot_calendar import LSTEP
 from calendar_my import MyStyleCalendar
-import apidler
 import orm
 import re
 from datetime import date, datetime
+from valid import check_number_hotels
 
 def check_city(message: types.Message):
     """
@@ -20,7 +20,7 @@ def check_city(message: types.Message):
     :param message:
     :return:
     """
-    user=user_dict[message.chat.id]
+    user=User.get_user(message.chat.id)
     user.locale=apidler.check_locale(message.text)
     keyboard=types.InlineKeyboardMarkup()  # наша клавиатура
     try:
@@ -64,9 +64,8 @@ def get_hotels(message: types.Message):
     :param message:
     :return:
     """
-    user=user_dict[message.chat.id]
+    user=User.get_user(message.chat.id)
     bot.send_message(message.chat.id, 'Придется немного подождать ⏳')
-    orm.create_table_guest()
     new_find=orm.Guest.create(cmd=user.cmd, sity=user.sity, sity_id=user.sity_id,
                               date_in=user.date_in, date_out=user.date_out,
                               low_price=user.low_price, top_price=user.top_price, max_dist=user.max_dist,
@@ -74,77 +73,70 @@ def get_hotels(message: types.Message):
                               foto_count=user.foto_count, user_id=user.id,
                               time_now=datetime.now())
     # .strftime("%m/%d/%Y, %H:%M:%S"
-    try:
-        if user.cmd == '/lowprice':
-            list_hotels=apidler.lowprice_func(user.sity_id, user.count_hotels, user.date_in,
-                                              user.date_out, user.locale, message.from_user.id)
-        elif user.cmd == '/highprice':
-            list_hotels=apidler.highprice_func(user.sity_id, user.count_hotels, user.date_in,
-                                               user.date_out, user.locale, message.from_user.id)
-        else:  # user.cmd == '/bestdeal':
-            list_hotels=apidler.bestdeal_func(user.sity_id, user.count_hotels, user.date_in, user.date_out,
-                                              user.low_price, user.top_price, user.locale, message.from_user.id)
-            try:
-                list_hotels=[hotel for hotel in list_hotels if check_dist(hotel["landmarks"][0]["distance"],
-                                                                          user.max_dist, user.locale)]
-                # list_hotels=sorted(list_hotels, key=apidler.sort_key)
-            except:
-                logger.info('Какая-то фигня')
-        if len(list_hotels) < int(user.count_hotels) and len(list_hotels) > 0:
-            bot.send_message(message.chat.id, 'Найдено {} отелей'.format(len(list_hotels)))
-        elif len(list_hotels) == 0:
-            bot.send_message(message.chat.id, 'По вашему запросу не найден ни один отель.'
-                                              ' Повторите поиск с другими параметрами')
-        for hotel in list_hotels:
-            hotel_info={}
-            try:
-                hotel_info['name']=hotel["name"]
-            except:
-                logger.error('name not found')
-            try:
-                hotel_info['dist']=hotel["landmarks"][0]["distance"]
-            except:
-                logger.error('distance not found')
+    if user.cmd == '/lowprice':
+        list_hotels=lowprice.lowprice_func(user.sity_id, user.count_hotels, user.date_in,
+                                          user.date_out, user.locale, user.currency, message.from_user.id)
+    elif user.cmd == '/highprice':
+        list_hotels=highprice.highprice_func(user.sity_id, user.count_hotels, user.date_in,
+                                           user.date_out, user.locale, user.currency, message.from_user.id)
+    elif user.cmd == '/bestdeal':
+        list_hotels=bestdeal.bestdeal_func(user.sity_id, user.count_hotels, user.date_in, user.date_out,
+                                          user.low_price, user.top_price, user.locale, user.currency, message.from_user.id)
+        # try:
+        #     list_hotels=[hotel for hotel in list_hotels if check_dist(hotel["landmarks"][0]["distance"],
+        #                                                               user.max_dist, user.locale)]
+        # except:
+        #     logger.info('Какая-то фигня')
+    check_number_hotels(len(list_hotels), user.count_hotels, message.chat.id)
+    for hotel in list_hotels:
+        hotel_info={}
+        try:
+            hotel_info['name']=hotel["name"]
+        except:
+            logger.error('name not found')
+        try:
+            hotel_info['dist']=hotel["landmarks"][0]["distance"]
+        except:
+            logger.error('distance not found')
+        try:
+            hotel_info['addres']=hotel["address"]["streetAddress"]+', '+hotel["address"]["locality"]+', '+hotel["address"]["countryName"]
+        except KeyError:
             details_info=apidler.get_details(hotel['id'], user.date_in, user.date_out, user.locale)
-            try:
-                hotel_info['addres']=details_info["propertyDescription"]["address"][
-                    "fullAddress"]  # может отсутствовать информация
-            except KeyError:
-                logger.error('addres not found')
-                hotel_info['addres']='Адрес отсутствует'
-            try:
-                hotel_info['price']=hotel["ratePlan"]["price"]["current"] + ' ' + hotel["ratePlan"]["price"]["info"]
-            except KeyError:
-                hotel_info['price']=str(
-                    int(hotel["ratePlan"]["price"]["exactCurrent"] * (user.date_out - user.date_in).days)) + \
-                                    " " + "рублей за 1 номер на {} суток".format((user.date_out - user.date_in).days)
-            hotel_info['stars']=str(details_info["propertyDescription"]["starRating"])
-            hotel_info['site']='https://ru.hotels.com/ho' + str(hotel['id'])
-            send_info='🔥 {name}\n🌍 Адрес: {addres}\n🚕 Расстояние до центра:' \
-                      ' {dist}\n💵 Цена: {price}\n⭐ Количество звёзд: {stars}\n' \
-                      '{site}'.format(name=hotel_info['name'], dist=hotel_info['dist'],
-                                      addres=hotel_info['addres'], price=hotel_info['price'],
-                                      stars=hotel_info['stars'], site=hotel_info['site'])
-            bot.send_message(message.chat.id, send_info)
-            orm.create_table_hotels()
-            orm.Hotels_find.create(owner=new_find, name=hotel_info['name'], dist=hotel_info['dist'],
-                                   addres=hotel_info['addres'], price=hotel_info['price'],
-                                   stars=hotel_info['stars'], site=hotel_info['site'])
-            if user.foto:
-                foto=apidler.get_foto(hotel["id"])
-                for i in range(int(user.foto_count)):
-                    try:
-                        link=foto[i]["baseUrl"]
-                        size=foto[i]["sizes"][1]["suffix"]
-                        link_new=re.sub(r'{size}', size, link)
-                        bot.send_photo(message.chat.id, link_new)
-                    except IndexError as e:
-                        logger.error('get_fotos - {}'.format(e))
-    # except TypeError:
-    #     logger.error('Error recieved api data')
-    except Exception:
-        logger.error('Some data is not received')
-        bot.send_message(message.chat.id, "Не удалось найти данные, нажмите /help")
+            hotel_info['addres']=details_info["propertyDescription"]["address"]["fullAddress"]  # может отсутствовать информация
+        except KeyError:
+            logger.error('addres not found')
+            hotel_info['addres']='Адрес отсутствует'
+        hotel_info['price_day']=hotel["ratePlan"]["price"]["current"]
+
+        price_current=int(re.sub(r',', ".", re.search(r'\d+[,]*\d*', hotel["ratePlan"]["price"]["current"])[0]))
+        hotel_info['price']=str(price_current * (user.date_out - user.date_in).days)
+        hotel_info['stars']=str(hotel["starRating"])
+        hotel_info['site']='https://ru.hotels.com/ho' + str(hotel['id'])
+        send_info='🔥 {name}\n🌍 Адрес: {addres}\n🚕 Расстояние до центра:' \
+                  ' {dist}\n💵 Цена за сутки: {price_day}\n💵 Цена  за {days} суток: {price} {currency}\n'\
+                  '⭐ Количество звёзд: {stars}\n' \
+                  '{site}'.format(name=hotel_info['name'], dist=hotel_info['dist'],
+                                  addres=hotel_info['addres'], price_day=hotel_info['price_day'], price=hotel_info['price'],
+                                  stars=hotel_info['stars'], site=hotel_info['site'], days=(user.date_out - user.date_in).days,
+                                  currency=user.currency)
+        bot.send_message(message.chat.id, send_info)
+        orm.Hotels_find.create(owner=new_find, name=hotel_info['name'], dist=hotel_info['dist'],
+                               addres=hotel_info['addres'], price=hotel_info['price'],
+                               stars=hotel_info['stars'], site=hotel_info['site'])
+        if user.foto:
+            foto=get_photo.get_foto(hotel["id"])
+            for i in range(int(user.foto_count)):
+                try:
+                    link=foto[i]["baseUrl"]
+                    size=foto[i]["sizes"][1]["suffix"]
+                    link_new=re.sub(r'{size}', size, link)
+                    bot.send_photo(message.chat.id, link_new)
+                except IndexError as e:
+                    logger.error('get_fotos - {}'.format(e))
+
+    # except Exception:
+    #     logger.error('Some data is not received')
+    #     bot.send_message(message.chat.id, "Не удалось найти данные, нажмите /help")
 
 
 def calendar_func_in(id):
@@ -169,7 +161,7 @@ def calendar_func_out(id):
     """
     bot.send_message(id, 'Введите дату выезда',
                      reply_markup=types.ReplyKeyboardRemove())
-    user=user_dict[id]
+    user=User.get_user(id)
     calendar, step=MyStyleCalendar(min_date=user.date_in, max_date=date(2023, 12, 31), locale='ru').build()
     bot.send_message(id,
                      f"Select {LSTEP[step]}",

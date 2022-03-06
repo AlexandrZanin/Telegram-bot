@@ -3,7 +3,7 @@
 '''
 
 from telebot import types
-from loader import bot, registration, user_dict
+from loader import bot, registration
 import handlers
 import orm
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
@@ -11,6 +11,7 @@ from calendar_my import  MyStyleCalendar
 import re
 from datetime import date
 from loguru import logger
+from userclass import User
 logger.add('loging.log', format="<green>{time:YYYY-MM-DD   HH:mm:ss.SSS}</green> {level} {message}", level="DEBUG")
 
 comands_list=['/lowprice - топ самых дешёвых отелей',
@@ -76,7 +77,7 @@ def history_message(message):
 @bot.message_handler(content_types='text')
 def some_text(message):
     if message.text=='Да':
-        user=user_dict[message.chat.id]
+        user=User.get_user(message.chat.id)
         user.foto=True
         bot.send_message(message.chat.id, 'Сколько фото выводить (не больше 10)?',
                          reply_markup=types.ReplyKeyboardRemove())
@@ -91,7 +92,7 @@ def some_text(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('yes'))
 def callback_worker(query):
     if query.data == "yes":  # call.data это callback_data, которую мы указали при объявлении кнопки
-        user=user_dict[query.message.chat.id]
+        user=User.get_user(query.message.chat.id)
         user.foto=True
         bot.send_message(query.message.chat.id, 'Сколько фото выводить (не больше 10)?',
                          reply_markup=types.ReplyKeyboardRemove())
@@ -110,7 +111,7 @@ def callback_worker(query):
 
 @bot.callback_query_handler(func=lambda call: re.search(r'^\d', call.data))#кнопка выбора города из вариантов
 def callback_worker(query):
-    user=user_dict[query.message.chat.id]
+    user=User.get_user(query.message.chat.id)
     #print(query.message.reply_markup.keyboard)
     user.sity_id=query.data
     user.sity=user.city_name_id[user.sity_id]
@@ -131,7 +132,7 @@ def callback_worker(query):
                          reply_markup=types.ReplyKeyboardRemove())
 @bot.callback_query_handler(func=DetailedTelegramCalendar.func())
 def cal(c):
-    user=user_dict[c.message.chat.id]
+    user=User.get_user(c.message.chat.id)
     if not user.date_in:
         result, key, step =  MyStyleCalendar(min_date=date.today(), max_date=date(2023, 12, 31)).process(c.data)
         if not result and key:
@@ -168,7 +169,7 @@ def cal(c):
 
 
 def get_hotels_count(message):
-    user=user_dict[message.chat.id]
+    user=User.get_user(message.chat.id)
     if message.text.isdigit(): #проверка, что введено число
         hotel_count=int(message.text)
         if hotel_count<=10:
@@ -194,7 +195,7 @@ def get_hotels_count(message):
         bot.register_next_step_handler(message, get_hotels_count)
 
 def get_max_dist(message):
-    user=user_dict[message.chat.id]
+    user=User.get_user(message.chat.id)
     if re.findall('\A\d+\Z', message.text) or re.findall('^\d+[.,]+\d+', message.text): #соответствует ли шаблону число или дробное число
         user.max_dist=message.text
         bot.send_message(message.chat.id, 'Сколько отелей выводить? (Не больше 10)')
@@ -205,7 +206,7 @@ def get_max_dist(message):
 
 def get_price_range(message):
     if re.search('^\d+[-]\d+', message.text): # проверяем введен ли диапазон по шаблону XXX-XXX
-        user=user_dict[message.chat.id]
+        user=User.get_user(message.chat.id)
         user.low_price=re.findall(r'\d+', message.text)[0]
         user.top_price=re.findall(r'\d+', message.text)[1]
         if user.low_price==user.top_price:# если введены два одинаковых числа
@@ -221,7 +222,7 @@ def get_price_range(message):
         bot.register_next_step_handler(message, get_price_range)
 
 def get_count_foto(message):
-    user=user_dict[message.chat.id]
+    user=User.get_user(message.chat.id)
     if message.text.isdigit():
         hotel_count=int(message.text)
         if hotel_count <= 10:
