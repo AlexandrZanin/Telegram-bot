@@ -35,11 +35,11 @@ def bestdeal_func(sity_id: str, count:str, date_in:str, date_out:str, low_price:
             logger.info('bestdeal - successful')
             return hotels['results']
         else:
-            bot.send_message(id, 'Поиск не дал результатов, для нового поиска нажмите /help')
+            return []
 
     except json.decoder.JSONDecodeError as e:
         logger.error('Api connection error {}'.format(e))
-        bot.send_message(id, 'Некорректный ответ')
+        return []
     except KeyError as e:
-        logger.error('Error {}/highprice'.format(e))
-        bot.send_message(id, 'Некорректный ответ, нажмите /help')
+        logger.error('Error {}/bestdeal'.format(e))
+        return []

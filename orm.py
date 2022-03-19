@@ -19,18 +19,22 @@ class Guest(BaseModel):
     foto=BooleanField()#(default=True)
     foto_count=IntegerField()#(default=0)
     max_dist=CharField(default=None)
+    currency=CharField()
 class Hotels_find(BaseModel):
     owner=ForeignKeyField(Guest, related_name='hotels')
     name=CharField()
     dist=CharField()
     addres=CharField()
+    price_day=CharField()
     price=CharField()
     stars=CharField()
     site=CharField()
+    date_in=DateField()
+    date_out=DateField()
+    foto=CharField()
 def create_table_guest():
     with db:
         Guest.create_table()
 def create_table_hotels():
     with db:
         Hotels_find.create_table()
-

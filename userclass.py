@@ -39,10 +39,13 @@ class User:
 
     @staticmethod
     def get_user(user_id):
-        if User.user_dict.get(user_id) is None:
-            new_user=User(user_id)
-            return new_user
         return User.user_dict.get(user_id)
+    @staticmethod
+    def reg_user(user_id):
+        if User.user_dict.get(user_id):
+            del User.user_dict[user_id]
+        new_user=User(user_id)
+        return new_user
 
     @classmethod
     def add_user(cls, user_id, user):
