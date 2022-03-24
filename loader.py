@@ -37,7 +37,7 @@ def registration(message: types.Message):
     orm.create_table_hotels()
     bot.send_message(message.chat.id, 'Выберите город для поиска отелей',
                      reply_markup=types.ReplyKeyboardRemove())
-    bot.send_message(message.chat.id, 'К сожалению, города России не доступны для поиска',
+    bot.send_message(message.chat.id, '❌ К сожалению, города России не доступны для поиска',
                      reply_markup=types.ReplyKeyboardRemove())
 
 

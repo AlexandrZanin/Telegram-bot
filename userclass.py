@@ -34,7 +34,7 @@ class User:
         self.locale='en_US'
         self.max_dist=0
         self.city_name_id={}
-        self.currency='RUB'
+        self.currency=None
         User.add_user(id, self)
 
     @staticmethod

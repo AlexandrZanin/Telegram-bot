@@ -22,3 +22,10 @@ def get_distance(distance:str):
     For ex.:"0.7 miles"->0.7
     """
     return float(re.sub(r',',".",re.findall('\d+[.,]*\d*', distance)[0]))
+
+def get_price(price:str):
+    d=price[::-1]
+    n=3
+    chunks=[d[i:i + n][::-1] for i in range(0, len(d), n)]
+    chunks.reverse()
+    return ','.join(chunks)

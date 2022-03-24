@@ -12,7 +12,7 @@ from calendar_my import MyStyleCalendar
 from orm import Guest, Hotels_find
 import re
 from datetime import date, datetime,timedelta
-from valid import check_number_hotels, get_distance
+from valid import check_number_hotels, get_distance, get_price
 
 def check_city(message: types.Message):
     """
@@ -61,7 +61,7 @@ def get_hotels(message: types.Message):
     :return:
     """
     user=User.get_user(message.chat.id)
-    bot.send_message(message.chat.id, 'Придется немного подождать ⏳')
+    wait_message=bot.send_message(message.chat.id, 'Придется немного подождать ⏳')
     new_find=Guest.create(cmd=user.cmd, sity=user.sity, sity_id=user.sity_id,
                               date_in=user.date_in, date_out=user.date_out,
                               low_price=user.low_price, top_price=user.top_price, max_dist=user.max_dist,
@@ -85,6 +85,7 @@ def get_hotels(message: types.Message):
         except KeyError:
             logger.info('Дистанция ')
     check_number_hotels(len(list_hotels), user.count_hotels, message.chat.id)
+    bot.delete_message(message.chat.id, wait_message.id)
     for hotel in list_hotels:
         hotel_info={}
         try:
@@ -119,7 +120,7 @@ def get_hotels(message: types.Message):
                                price=hotel_info['price'],
                                stars=hotel_info['stars'], site=hotel_info['site'], date_in=user.date_in,
                                       date_out=user.date_out, foto=hotel_info['foto'])
-        send_info(hotel_send, message.from_user.id)
+        send_info(hotel_send) #выводим результаты поиска
 
         if user.foto:
             foto=get_photo.get_foto(hotel["id"])
@@ -144,7 +145,7 @@ def calendar_func_in(id):
                      reply_markup=types.ReplyKeyboardRemove())
     calendar, step=MyStyleCalendar(min_date=date.today(), max_date=date(2023, 12, 31), locale='ru').build()
     bot.send_message(id,
-                     f"Select {LSTEP[step]}",
+                     f"Выберите {LSTEP[step]}",
                      reply_markup=calendar)
 
 
@@ -159,7 +160,7 @@ def calendar_func_out(id):
     user=User.get_user(id)
     calendar, step=MyStyleCalendar(min_date=user.date_in+timedelta(days=+1), max_date=date(2023, 12, 31), locale='ru').build()
     bot.send_message(id,
-                     f"Select {LSTEP[step]}",
+                     f"Выберите {LSTEP[step]}",
                      reply_markup=calendar)
 
 
@@ -197,23 +198,22 @@ def check_dist(hotel:dict, max_dist: str, locale: str):
 
 
 
-def send_info(hotel:Hotels_find, id:str):
+def send_info(hotel:Hotels_find):
     """
     This function sends information about hotel
     :param hotel: orm class Hotels_find - all found hotels
-    :param id: message.from_user.id
     :return:
     """
     if (hotel.date_out - hotel.date_in).days%10==1:
         ending='ки'
     else:
         ending='ок'
-    user_find=Guest.select().where(Guest.user_id==id).get()#
+    user_find=Guest.select().where(Guest.id==hotel.owner).get()#
     send_info='🔥 {name}\n🌍 Адрес: {addres}\n🚕 Расстояние до центра:' \
-              ' {dist}\n💵 Цена за сутки: {price_day}\n💵 Цена за {days} сут{ending}: {price} {currency}\n' \
+              ' {dist}\n💵 Цена за сутки: {price_day}\n💶 Цена за {days} сут{ending}: {price} {currency}\n' \
               '⭐ Количество звёзд: {stars}\n' \
               '{site}'.format(name=hotel.name, dist=hotel.dist,
-                              addres=hotel.addres, price_day=hotel.price_day, price=hotel.price,
+                              addres=hotel.addres, price_day=hotel.price_day, price=get_price(hotel.price),
                               stars=hotel.stars, site=hotel.site,
                               days=(hotel.date_out - hotel.date_in).days,
                               currency=user_find.currency, ending=ending)

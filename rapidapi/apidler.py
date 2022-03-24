@@ -56,10 +56,6 @@ def get_sity_destinationID(locale:str, message:types.Message):
         logger.error('Error {}/get_sity_destinationID'.format(e))
         bot.send_message(message.from_user.id, 'Некорректный ответ, нажмите /help')
 
-
-
-
-
 def get_details(id:str, checkin: str, checkout: str, locale):
     """
 
@@ -88,25 +84,6 @@ def get_details(id:str, checkin: str, checkout: str, locale):
         logger.error('Api connection error {}'.format(e))
         bot.send_message(id, 'Ошибка в соединение')
 
-'''
-
-#не используется
-def get_hotels_data(**kwargs):
-    querystring=kwargs
-    querystring.update(adults1="1", pageNumber= "1", sortOrder="PRICE" )
-    url="https://hotels4.p.rapidapi.com/properties/list"
-    print(querystring)
-    # querystring={"destinationId": get_sity_destinationID(sity), "pageNumber": "1", "pageSize": count,
-    #              "checkIn": date_in, "checkOut": date_out, "adults1": "1",
-    #              "priceMin":low_price, "priceMax": top_price,
-    #              "sortOrder": "PRICE", "locale": "en_US", "currency": "USD"}
-    response=requests.request("GET", url, headers=headers, params=querystring)
-    if response.status_code!=200:
-       print("error_server")
-    results=json.loads(response.text)
-    hotels=results["data"]["body"]["searchResults"]["results"]
-    return sorted(hotels)
-    '''
 def check_locale(city:str):
     city=city.lower()
     if all([True if sym in 'abcdefghighijklmnoprstuvwxyz- ' else False for sym in city]):

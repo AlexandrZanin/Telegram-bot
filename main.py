@@ -61,7 +61,6 @@ def history_message(message:types.Message):
                 text_button="Время запроса: {time_now}\nКоманда {cmd}\nГород: {sity}\nДата заезда: {in_date}\nДата выезда: {out_date}". \
                     format(time_now=id_request.time_now[:-7], cmd=id_request.cmd, sity=id_request.sity, in_date=id_request.date_in,
                            out_date=id_request.date_out,)
-            # markup.add(types.InlineKeyboardButton(text='Подробнее', callback_data='id'+str(id_request.id)))
             handlers.get_keyboard(data='id' + str(id_request.id), text=text_button, message=message)
             counter+=1
             if counter==5:
@@ -84,17 +83,25 @@ def stop_message(message):
 
 @bot.message_handler(content_types='text')
 def some_text(message:types.Message):
+    user=User.get_user(message.chat.id)
     if message.text=='Да':
-        user=User.get_user(message.chat.id)
         user.foto=True
         bot.send_message(message.chat.id, 'Сколько фото выводить (не больше 10)?',
                          reply_markup=types.ReplyKeyboardRemove())
-
         bot.register_next_step_handler(message, get_count_foto)
     elif message.text == 'Нет':
         handlers.get_hotels(message)
+    elif message.text=='RUB':
+        user.currency='RUB'
+        handlers.calendar_func_in(message.chat.id)
+    elif message.text=='USD':
+        user.currency='USD'
+        handlers.calendar_func_in(message.chat.id)
+    elif message.text=='EUR':
+        user.currency='EUR'
+        handlers.calendar_func_in(message.chat.id)
     else:
-        bot.send_message(message.chat.id, 'Не понятно, нажми /help')
+        bot.send_message(message.chat.id, '🤔 Не понятно, нажми /help')
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('yes'))
@@ -124,20 +131,24 @@ def callback_worker(query):
     user.sity=user.city_name_id[user.sity_id]
     bot.edit_message_text(chat_id=query.message.chat.id, message_id=query.message.message_id,
                           text='Вы выбрали {}'.format(user.sity))
-    handlers.calendar_func_in(query.message.chat.id)
+    # handlers.calendar_func_in(query.message.chat.id)
+    keyboard=types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    keyboard.row('RUB', 'USD', 'EUR')
+    question='Выберите валюту?'
+    bot.send_message(query.message.chat.id, text=question, reply_markup=keyboard)
         # bot.register_next_step_handler(query.message, get_date_in)
 
 @bot.callback_query_handler(func=lambda call: re.search(r'[id]\d+', call.data))#кнопка "смотреть подробнее" в history
 def callback_worker(query):
     query.data=int(query.data[2:])
     for hotel in orm.Hotels_find.select().where(orm.Hotels_find.owner_id==query.data):
-        handlers.send_info(hotel, query.message.chat.id)
+        handlers.send_info(hotel)
 
 @bot.callback_query_handler(func=DetailedTelegramCalendar.func())
 def cal(c):
     user=User.get_user(c.message.chat.id)
     if not user.date_in:
-        result, key, step =  MyStyleCalendar(min_date=date.today(), max_date=date(2023, 12, 31)).process(c.data)
+        result, key, step =  MyStyleCalendar(min_date=date.today(), max_date=date(2023, 12, 31), locale='ru').process(c.data)
         if not result and key:
             bot.edit_message_text(f"Выберите {LSTEP[step]}",
                                        c.message.chat.id,
@@ -150,7 +161,7 @@ def cal(c):
             user.date_in=result
             handlers.calendar_func_out(c.message.chat.id)
     else:
-        result, key, step=MyStyleCalendar(min_date=user.date_in+timedelta(days=+1), max_date=date(2023, 12, 31)).process(c.data)
+        result, key, step=MyStyleCalendar(min_date=user.date_in+timedelta(days=+1), max_date=date(2023, 12, 31), locale='ru').process(c.data)
         if not result and key:
             bot.edit_message_text(f"Выберите {LSTEP[step]}",
                                c.message.chat.id,
@@ -163,7 +174,8 @@ def cal(c):
                                c.message.message_id)
             user.date_out=result
             if user.cmd == '/bestdeal':
-                bot.send_message(c.message.chat.id, 'Укажите диапазон цен за ночь в рублях(priceMin-priceMax)',
+                bot.send_message(c.message.chat.id, 'Укажите диапазон цен за ночь в {} (priceMin-priceMax)'.
+                                 format(user.currency),
                                  reply_markup=types.ReplyKeyboardRemove())
                 bot.register_next_step_handler(c.message, get_price_range)
             else:
@@ -216,7 +228,7 @@ def get_price_range(message:types.Message):
             bot.send_message(message.chat.id, 'Введите максимальное расстояние до центра в км (например 0,5)')
             bot.register_next_step_handler(message, get_max_dist)
     else:
-        bot.edit_message_text(message.chat.id, 'Введите диапазон (например: 1000-2000)')
+        bot.send_message(message.chat.id, 'Введите диапазон (например: 1000-2000)')
         bot.register_next_step_handler(message, get_price_range)
 
 def get_count_foto(message:types.Message):
