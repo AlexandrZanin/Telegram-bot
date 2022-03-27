@@ -1,3 +1,13 @@
+"""
+Файл с классом user.
+Экземпляры класса имеют следующие параметры: команда,
+id юзера, название города, дата заезда и выезда,
+нижний и верхни порог цены за ночь, количество показываемых отелей,
+показывать ли фото и сколько, локаль, максимальное расстояние от центра,
+id  города.
+
+При объявление нового юзера, юзер заносится в dictionary, где dictionary: key=city id, value = user
+"""
 class User:
     """ This is User Class
     """
@@ -17,7 +27,7 @@ class User:
         :param foto_count: how many foto to show
         :param locale: en_US or ru_RU
         :param max_dist: maximum distance to the city center
-        :param city_name_id: temporary storage. dictionary: key=city id, value=city name
+        :param city_name_id: temporary storage.
         :return: User object.
         """
         self.cmd=None
