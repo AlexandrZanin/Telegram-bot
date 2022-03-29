@@ -1,6 +1,7 @@
+"""
+orm peewe. class Guest, class Hotel_find
+"""
 from peewee import *
-
-
 db=SqliteDatabase('history_test.db')
 class BaseModel(Model):
     class Meta:

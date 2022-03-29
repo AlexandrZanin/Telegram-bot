@@ -1,3 +1,6 @@
+"""
+Включает в себя функции проверки.
+"""
 from loader import bot
 import re
 def check_number_hotels(len_list_hotels: int, number, id):

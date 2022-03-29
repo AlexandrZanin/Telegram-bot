@@ -1,7 +1,6 @@
 '''Основной скрипт который запускает работу,
 в нем нужные импорты и функции, которые используют декораторы message_handler и callback.
 '''
-
 from telebot import types
 from loader import bot, registration
 import handlers
@@ -12,7 +11,7 @@ import re
 from datetime import date, timedelta
 from loguru import logger
 from userclass import User
-logger.add('loging.log', format="<green>{time:YYYY-MM-DD   HH:mm:ss.SSS}</green> {level} {message}", level="DEBUG")
+logger.add('loging.log', format="<green>{time:YYYY-MM-DD   HH:mm:ss.SSS}</green> {level} {message}", level="INFO")
 
 comands_list=['/lowprice - топ самых дешёвых отелей',
               '/highprice - топ самых дорогих отелей',
@@ -47,16 +46,15 @@ def bestdeal_message(message):
 @bot.message_handler(commands=['history'])# история запросов
 def history_message(message:types.Message):
     if orm.Guest.select():
-        # markup=types.InlineKeyboardMarkup()
         counter=0
         for id_request in orm.Guest.select().where(orm.Guest.user_id == message.from_user.id).order_by(orm.Guest.time_now.desc()):
             # из базы берутся запросы, которые соответствуют по user.id, отсортированные по времени в порядке убывания
             if id_request.cmd=='/bestdeal':
                 text_button="Время запроса: {time_now}\nКоманда: {cmd}\nГород: {sity}\nДата заезда: {in_date}\nДата выезда: {out_date}\
-                \nДиапазон цен: {min_price}-{max_price}\nРасстояние до центра: {max_dist}".\
+                \nДиапазон цен: {min_price}-{max_price} {currency}\nРасстояние до центра: {max_dist}".\
                     format(time_now=id_request.time_now[:-7], cmd=id_request.cmd, sity=id_request.sity,
                            in_date=id_request.date_in, out_date=id_request.date_out, min_price=id_request.low_price,
-                           max_price=id_request.top_price, max_dist=id_request.max_dist)
+                           max_price=id_request.top_price, max_dist=id_request.max_dist, currency=id_request.currency)
             else:
                 text_button="Время запроса: {time_now}\nКоманда {cmd}\nГород: {sity}\nДата заезда: {in_date}\nДата выезда: {out_date}". \
                     format(time_now=id_request.time_now[:-7], cmd=id_request.cmd, sity=id_request.sity, in_date=id_request.date_in,

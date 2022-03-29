@@ -1,6 +1,5 @@
 """
-основной модуль loader.py который погружает все нужное, создает экземпляры если нужны.
-В нем должны подгружаться все нужные константы(токены бота, API) инициализироваться класс с ботом TeleBot
+модуль loader.py: создаётся bot
 """
 import telebot
 from loguru import logger
@@ -9,10 +8,6 @@ import os
 from dotenv import load_dotenv
 from userclass import User
 import orm
-
-
-
-
 
 def env_token(key):
     dotenv_path=os.path.join(os.path.dirname(__file__), '.env')
@@ -39,7 +34,3 @@ def registration(message: types.Message):
                      reply_markup=types.ReplyKeyboardRemove())
     bot.send_message(message.chat.id, '❌ К сожалению, города России не доступны для поиска',
                      reply_markup=types.ReplyKeyboardRemove())
-
-
-
-

@@ -1,6 +1,4 @@
-import handlers
 import json
-from main import bot
 from loguru import logger
 import re
 from rapidapi.apidler import request_to_api, headers

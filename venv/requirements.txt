@@ -1,5 +1,0 @@
-pyTelegramBotAPI==4.2.0
-peewee==3.14.8
-loguru==0.5.3
-python-telegram-bot-calendar==1.0.5
-requests==2.26.0
