@@ -112,13 +112,21 @@ def get_hotels(message: types.Message):
             except KeyError:
                 logger.error('address not found')
                 hotel_info['address']='Адрес отсутствует'
-        hotel_info['price_day']=hotel["ratePlan"]["price"]["current"]
-
-        hotel_info['price']=str(int(hotel["ratePlan"]["price"]["exactCurrent"] * (user.date_out - user.date_in).days))
+        try:
+            hotel_info['price_day']=hotel["ratePlan"]["price"]["current"]
+        except KeyError:
+            logger.error('price_day not found')
+            hotel_info['price_day']='Данных нет'
+        try:
+            hotel_info['price']=str(int(hotel["ratePlan"]["price"]["exactCurrent"] *
+                                        (user.date_out - user.date_in).days))
+        except KeyError:
+            logger.error('price not found')
+            hotel_info['price']='Данных нет'
         hotel_info['stars']=str(hotel["starRating"])
         hotel_info['site']='https://ru.hotels.com/ho' + str(hotel['id'])
         hotel_info['foto']=hotel["optimizedThumbUrls"]["srpDesktop"]
-        "Записываем информацию об отеле в базу данных. "
+        # "Записываем информацию об отеле в базу данных. "
         hotel_send=Hotels_Find.create(owner=new_find, name=hotel_info['name'], dist=hotel_info['dist'],
                                       addres=hotel_info['address'], price_day=hotel_info['price_day'],
                                       price=hotel_info['price'],
@@ -214,11 +222,11 @@ def send_info(hotel: Hotels_Find):
         ending='ок'
     user_find=Guest.select().where(Guest.id == hotel.owner).get()  #
     send_info_='🔥 {name}\n🌍 Адрес: {address}\n🚕 Расстояние до центра:' \
-               ' {dist}\n💵 Цена за сутки: {price_day}\n💶 Цена за {days} сут{ending}: {price} {currency}\n' \
+               ' {dist}\n💵 Цена за сутки: {price_day}\n💶 Цена за {days} сут{ending}: {price} \n' \
                '⭐ Количество звёзд: {stars}\n' \
                '{site}'.format(name=hotel.name, dist=hotel.dist,
-                               address=hotel.addres, price_day=hotel.price_day, price=get_price(hotel.price),
+                               address=hotel.addres, price_day=hotel.price_day,
+                               price=get_price(hotel.price, user_find.currency),
                                stars=hotel.stars, site=hotel.site,
-                               days=(hotel.date_out - hotel.date_in).days,
-                               currency=user_find.currency, ending=ending)
+                               days=(hotel.date_out - hotel.date_in).days, ending=ending)
     bot.send_photo(user_find.user_id, photo=hotel.foto, caption=send_info_)

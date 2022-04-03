@@ -30,9 +30,18 @@ def get_distance(distance: str):
     return float(re.sub(r',', ".", re.findall('\d+[.,]*\d*', distance)[0]))
 
 
-def get_price(price: str):
-    d=price[::-1]
-    n=3
-    chunks=[d[i:i + n][::-1] for i in range(0, len(d), n)]
-    chunks.reverse()
-    return ','.join(chunks)
+def get_price(price: str, currency: str):
+    """
+    this function split price
+    :param price: for ex.'20500'
+    :param currency: EUR, RUB, USD
+    :return: for ex.'20,500'
+    """
+    if price.isdigit():
+        d=price[::-1]
+        n=3
+        chunks=[d[i:i + n][::-1] for i in range(0, len(d), n)]
+        chunks.reverse()
+        return ','.join(chunks)+ ' '+ currency
+    else:
+        return price
