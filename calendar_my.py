@@ -12,5 +12,5 @@ class MyStyleCalendar(DetailedTelegramCalendar):
     # you do not want empty cells when month and year are being selected
     empty_month_button = ""
     empty_year_button = ""
-    size_year=1
-    size_year_column=2
+    size_year = 1
+    size_year_column = 2

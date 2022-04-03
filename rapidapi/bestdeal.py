@@ -2,7 +2,10 @@ import json
 from loguru import logger
 import re
 from rapidapi.apidler import request_to_api, headers
-def bestdeal_func(sity_id: str, count:str, date_in:str, date_out:str, low_price:str, top_price:str,  locale:str, currency:str,id):
+
+
+def bestdeal_func(sity_id: str, count: str, date_in: str, date_out: str, low_price: str, top_price: str,
+                  locale: str, currency: str, id_):
     """
             This function searches for hotels in the price range and
             no more than the set distance from the center .
@@ -14,7 +17,8 @@ def bestdeal_func(sity_id: str, count:str, date_in:str, date_out:str, low_price:
             :param low_price:lower price limits
             :param top_price: upper price limits
             :param locale: en_US or ru_RU
-            :param id: user id
+            :param currency: RUB, EUR, USD
+            :param id_: user id
             :return list of hotels:
             """
     url="https://hotels4.p.rapidapi.com/properties/list"
@@ -24,7 +28,7 @@ def bestdeal_func(sity_id: str, count:str, date_in:str, date_out:str, low_price:
                  "sortOrder": "DISTANCE_FROM_LANDMARK",
                  "landmarkIds": "City center", "locale": locale, "currency": currency}
     try:
-        response=request_to_api(url, headers, querystring, id)
+        response=request_to_api(url, headers, querystring, id_)
         pattern='(?<=,)"results":.+(?=,"pagination)'
         find=re.search(pattern, response.text)
         if find:

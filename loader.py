@@ -1,22 +1,24 @@
 """
 модуль loader.py: создаётся bot
 """
+import os
 import telebot
+from dotenv import load_dotenv
 from loguru import logger
 from telebot import types
-import os
-from dotenv import load_dotenv
-from userclass import User
 import orm
+from userclass import User
+
 
 def env_token(key):
-    dotenv_path=os.path.join(os.path.dirname(__file__), '.env')
+    dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
     if os.path.exists(dotenv_path):
-         load_dotenv(dotenv_path)
-    token=os.getenv(key)
+        load_dotenv(dotenv_path)
+    token = os.getenv(key)
     return token
 
-bot=telebot.TeleBot(env_token('BOT_TOKEN'))
+
+bot = telebot.TeleBot(env_token('BOT_TOKEN'))
 
 
 def registration(message: types.Message):
@@ -25,8 +27,8 @@ def registration(message: types.Message):
     :param message:message
     :return:
     """
-    user=User.reg_user(message.from_user.id)
-    user.cmd=message.text
+    user = User.reg_user(message.from_user.id)
+    user.cmd = message.text
     logger.info('The user {} entered the command {}'.format(message.from_user.id, message.text))
     orm.create_table_guest()
     orm.create_table_hotels()
