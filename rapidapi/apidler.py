@@ -87,7 +87,9 @@ def get_details(id_: str, checkin: str, checkout: str, locale):
         logger.error('Api connection error {}'.format(e))
         bot.send_message(id_, 'Ошибка в соединение')
         return []
-
+    except TimeoutError as e:
+        logger.error('Api connection error {}'.format(e))
+        bot.send_message(id_, 'Попробуйте ещё раз выполнить поиск')
 
 def check_locale(city: str):
     city=city.lower()

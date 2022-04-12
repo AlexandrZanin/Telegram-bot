@@ -145,6 +145,7 @@ def get_hotels(message: types.Message):
                     bot.send_photo(message.chat.id, link_new)
                 except IndexError as e:
                     logger.error('get_photos - {}'.format(e))
+    bot.send_message(message.from_user.id, "Поиск завершён")
 
 
 def calendar_func_in(id_):

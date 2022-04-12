@@ -35,8 +35,7 @@ def get_price(price: str, currency: str):
     this function split price
     :param price: for ex.'20500'
     :param currency: EUR, RUB, USD
-    :return: for ex.'20,500'
-    """
+    :return: for ex.'20,500'    """
     if price.isdigit():
         d=price[::-1]
         n=3

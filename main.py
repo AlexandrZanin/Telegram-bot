@@ -214,7 +214,7 @@ def get_hotels_count(message: types.Message):
     user = User.get_user(message.chat.id)
     if message.text.isdigit():  # проверка, что введено число
         hotel_count = int(message.text)
-        if hotel_count <= 10:
+        if 10 >= hotel_count >= 1:
             user.count_hotels = message.text
             keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             keyboard.row('Да', 'Нет')
@@ -222,6 +222,9 @@ def get_hotels_count(message: types.Message):
             bot.send_message(message.chat.id, text=question, reply_markup=keyboard)
         elif hotel_count > 10:
             bot.reply_to(message, 'Число слишком большое, попробуйте ввести ещё раз')
+            bot.register_next_step_handler(message, get_hotels_count)
+        elif hotel_count <1:
+            bot.reply_to(message, 'Один отель или больше!')
             bot.register_next_step_handler(message, get_hotels_count)
     elif message.text == '/stop':
         stop_message(message)
@@ -266,15 +269,16 @@ def get_price_range(message: types.Message):
 
 def get_count_foto(message: types.Message):
     user = User.get_user(message.chat.id)
-    if message.text == '/stop':
-        bot.register_next_step_handler(message, stop_message)
     if message.text.isdigit():
-        hotel_count = int(message.text)
-        if hotel_count <= 10:
+        foto_count = int(message.text)
+        if 10 >= foto_count >= 1:
             user.foto_count = message.text
             handlers.get_hotels(message)
-        elif hotel_count > 10:
+        elif foto_count > 10:
             bot.reply_to(message, 'Число слишком большое, попробуйте ввести ещё раз')
+            bot.register_next_step_handler(message, get_count_foto)
+        elif foto_count<1:
+            bot.reply_to(message, 'Хотя бы 1!')
             bot.register_next_step_handler(message, get_count_foto)
     elif message.text == '/stop':
         stop_message(message)
