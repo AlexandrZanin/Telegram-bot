@@ -6,13 +6,13 @@ from userclass import User
 from rapidapi import apidler, bestdeal, lowprice, highprice, get_photo
 from loguru import logger
 from telebot import types
-from telegram_bot_calendar import LSTEP
+# from telegram_bot_calendar import LSTEP
 from calendar_my import MyStyleCalendar
 from orm import Guest, Hotels_Find
 import re
 from datetime import date, datetime, timedelta
 from valid import check_number_hotels, get_distance, get_price
-
+from main import LSTEP
 
 def check_city(message: types.Message):
     """

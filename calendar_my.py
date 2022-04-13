@@ -14,3 +14,4 @@ class MyStyleCalendar(DetailedTelegramCalendar):
     empty_year_button = ""
     size_year = 1
     size_year_column = 2
+

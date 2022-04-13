@@ -8,7 +8,7 @@ from telebot import types
 from loader import bot, registration
 import handlers
 import orm
-from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
+from telegram_bot_calendar import DetailedTelegramCalendar
 from calendar_my import MyStyleCalendar
 import re
 from datetime import date, timedelta
@@ -23,7 +23,7 @@ commands_list = ['/lowprice - топ самых дешёвых отелей',
                  '/history - история запросов',
                  '/stop - остановить поиск']
 
-
+LSTEP={'y': 'год', 'm': 'месяц', 'd': 'день'}
 @bot.message_handler(commands=['start'])
 def start_message(message):
     bot.send_message(message.chat.id, "Привет ✌️ Жми /help")
